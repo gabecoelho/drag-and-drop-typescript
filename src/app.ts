@@ -1,8 +1,20 @@
+// Project Type
+class Project {
+	constructor(public id: string, public title: string, public description: string, public people: number, public status: Status) {}
+}
+
+enum Status {
+	Active,
+	Finished
+}
+
+type Listener = (items: Project[]) => void;
+
 // Project State Management
 class ProjectState {
 
-	private projects: any[] = [];
-	private listeners: any[] = [];
+	private projects: Project[] = [];
+	private listeners: Listener[] = [];
 	private static instance: ProjectState;
 
 	private constructor() {}
@@ -16,17 +28,12 @@ class ProjectState {
 		return this.instance;
 	}
 
-	addListener(listenerFn: Function) {
+	addListener(listenerFn: Listener) {
 		this.listeners.push(listenerFn);
 	}
 
 	addProject(title: string, description: string, numPeople: number) {
-		const newProject = {
-			id: (Math.random() + Date.now()).toString(),
-			title,
-			description,
-			people: numPeople
-		};
+		const newProject = new Project((Math.random() + Date.now()).toString(), title, description, numPeople, Status.Active)
 
 		this.projects.push(newProject);
 
@@ -188,7 +195,7 @@ class ProjectList {
 	templateElement: HTMLTemplateElement;
 	hostElement: HTMLDivElement;
 	element: HTMLElement;
-	assignedProjects: any[];
+	assignedProjects: Project[];
 	
 	constructor(private type: 'active' | 'finished') {
 		this.templateElement = document.getElementById('project-list')! as HTMLTemplateElement;
@@ -202,8 +209,14 @@ class ProjectList {
 		this.element.id = `${this.type}-projects`;
 
 		// Register listener here
-		projectState.addListener((projects: any) => {
-			this.assignedProjects = projects;
+		projectState.addListener((projects: Project[]) => {
+			const displayedProjects = projects.filter(project => {
+				if (this.type === 'active') {
+					return project.status === Status.Active;
+				}
+				return project.status === Status.Finished;
+			});
+			this.assignedProjects = displayedProjects;
 			this.renderProjects();
 		});
 
@@ -213,6 +226,9 @@ class ProjectList {
 
 	private renderProjects() {
 		const listElement = document.getElementById(`${this.type}-projects-list`)! as HTMLUListElement;
+		
+		// This will re-render all projects. Not ideal, but a solution to the duplication of projects
+		listElement.innerHTML = '';
 		for (const projectItem of this.assignedProjects) {
 			const listItem = document.createElement('li');
 			listItem.textContent = projectItem.title;
@@ -223,9 +239,7 @@ class ProjectList {
 	private renderContent() {
 		const listId = `${this.type}-projects-list`;
 		this.element.querySelector('ul')!.id = listId;
-		this.element.querySelector('h2')!.textContent = `${this.type.toUpperCase()} PROJECTS`;
-		
-		
+		this.element.querySelector('h2')!.textContent = `${this.type.toUpperCase()} PROJECTS`;	
 	}
 
 	private attach() {
